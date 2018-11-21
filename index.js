@@ -6,7 +6,7 @@ const defaults = {
   viewportWidth: 750,
   viewportUnit: 'vmin',
   unitPrecision: 5,
-  fontViewportUnit: 'vw',  // vmin is more suitable.
+  fontViewportUnit: 'vmin',  // vmin is more suitable.
   propertyBlacklist: [],
   selectorBlackList: [],
   minPixelValue: 1,
@@ -84,5 +84,5 @@ function blacklistedProperty(blacklist, property) {
 }
 
 function blacklistedSelector(blacklist, selector) {
-  return blacklistedProperty(blacklist, property);
+  return blacklistedProperty(blacklist, selector);
 }

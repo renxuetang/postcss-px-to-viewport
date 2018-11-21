@@ -87,9 +87,13 @@ fs.writeFile('main-viewport.css', processedCss, function (err) {
 Default:
 ```js
 {
+  unitToConvert: 'px',
   viewportWidth: 750,
   viewportUnit: 'vmin',
+  unitPrecision: 5,
+  fontViewportUnit: 'vmin',  // vmin is more suitable.
   propertyBlacklist: [],
+  selectorBlackList: [],
   minPixelValue: 2,
   enableConvertComment: 'on',
   disableConvertComment: 'off',
