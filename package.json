@@ -1,0 +1,35 @@
+{
+  "name": "@renxuetang/postcss-px-to-viewport",
+  "version": "1.0.0",
+  "description": "A CSS post-processor that converts px to viewport units (vw, vh, vmin, vmax).",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renxuetang/postcss-px-to-viewport.git"
+  },
+  "keywords": [
+    "css",
+    "units",
+    "pixel",
+    "px",
+    "viewport",
+    "vw",
+    "vh",
+    "vmin",
+    "vmax",
+    "postcss",
+    "postcss-plugin"
+  ],
+  "author": "chenli1989 <chenli_1989@foxmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/renxuetang/postcss-px-to-viewport/issues"
+  },
+  "homepage": "https://github.com/renxuetang/postcss-px-to-viewport#readme",
+  "dependencies": {
+    "postcss": "^7.0.6"
+  },
+  "engines": {
+    "node": ">= 6"
+  }
+}
