@@ -16,7 +16,7 @@ If your project involves a fixed width, this script will help to convert pixels 
   padding: 5vmin 9.5px 1px;
   border: 3px solid black;
   border-bottom-width: 1px;
-  font-size: 14px;/*on*/
+  font-size: 14px;
   line-height: 20px;/*off*/
 }
 
@@ -70,7 +70,7 @@ var postcss = require('postcss');
 var px2viewport = require('..');
 var css = fs.readFileSync('main.css', 'utf8');
 var options = {
-  propertyBlacklist: ['font-size']
+  propList: ['font-size']
 };
 var processedCss = postcss(px2viewport(options)).process(css).css;
 
@@ -88,41 +88,52 @@ Default:
 ```js
 {
   unitToConvert: 'px',
-  viewportWidth: 750,
-  viewportUnit: 'vmin',
+  viewportWidth: 320,
+  viewportHeight: 568,
   unitPrecision: 5,
-  fontViewportUnit: 'vmin',  // vmin is more suitable.
-  propertyBlacklist: [],
+  viewportUnit: 'vw',
+  fontViewportUnit: 'vw',  // vmin is more suitable.
   selectorBlackList: [],
-  minPixelValue: 2,
-  enableConvertComment: 'on',
+  propList: ['*'],
+  minPixelValue: 1,
+  mediaQuery: false,
+  replace: true,
+  landscape: false,
+  landscapeUnit: 'vw',
+  landscapeWidth: 568,
+  mediaMinWidth: 767.98,
   disableConvertComment: 'off',
-  mediaQuery: false
 }
 ```
 - `unitToConvert` (String) unit to convert, by default, it is px.
 - `viewportWidth` (Number) The width of the viewport.
-- `unitPrecision` (Number) The decimal numbers to allow the REM units to grow to.
+- `unitPrecision` (Number) The decimal numbers to allow the vw units to grow to.
+- `propList` (Array) The properties that can change from px to vw.
+  - Values need to be exact matches.
+  - Use wildcard * to enable all properties. Example: ['*']
+  - Use * at the start or end of a word. (['*position*'] will match background-position-y)
+  - Use ! to not match a property. Example: ['*', '!letter-spacing']
+  - Combine the "not" prefix with the other prefixes. Example: ['*', '!font*']
 - `viewportUnit` (String) Expected units.
 - `fontViewportUnit` (String) Expected units for font.
-- `propertyBlacklist` (Array) The propertys to ignore and leave as px.
-    - If value is string, it checks to see if property contains the string.
-        - `['font']` will match `font-size`
-    - If value is regexp, it checks to see if the property matches the regexp.
-        - `[/^font$/]` will match `font` but not `font-size`
 - `selectorBlackList` (Array) The selectors to ignore and leave as px.
     - If value is string, it checks to see if selector contains the string.
         - `['body']` will match `.body-class`
     - If value is regexp, it checks to see if the selector matches the regexp.
         - `[/^body$/]` will match `body` but not `.body`
 - `minPixelValue` (Number) Set the minimum pixel value to replace.
-- `enableConvertComment` (String) content of comment for enable convert px unit before the declaration.
-- `disableConvertComment` (String) content of comment for disable convert px unit before the declaration.
 - `mediaQuery` (Boolean) Allow px to be converted in media queries.
+- `replace` (Boolean) replaces rules containing vw instead of adding fallbacks.
+- `exclude` (Array or Regexp) Ignore some files like 'node_modules'
+    - If value is regexp, will ignore the matches files.
+    - If value is array, the elements of the array are regexp.
+- `landscape` (Boolean) Adds `@media (orientation: landscape)` with values converted via `landscapeWidth`.
+- `landscapeUnit` (String) Expected unit for `landscape` option
+- `landscapeWidth` (Number) Viewport width for landscape orientation.
+- `disableConvertComment` (String) content of comment for disable convert px unit before the declaration.
 
 ### Use comment to enable/disable convert px value for single declaration
 
-- `font-size: 14px;/*on*/` comment before the declaration will convert px to viewport unit, if `font-size` is in your property blacklist but you want to convert this single declaration.
 - `font-size: 14px;/*off*/` comment before the declaration will not convert px unit.
 
 ### Use with gulp-postcss

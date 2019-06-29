@@ -1,11 +1,14 @@
 {
   "name": "@renxuetang/postcss-px-to-viewport",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A CSS post-processor that converts px to viewport units (vw, vh, vmin, vmax).",
   "main": "index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/renxuetang/postcss-px-to-viewport.git"
+  },
+  "scripts": {
+    "test": "jasmine-node spec"
   },
   "keywords": [
     "css",
@@ -26,8 +29,13 @@
     "url": "https://github.com/renxuetang/postcss-px-to-viewport/issues"
   },
   "homepage": "https://github.com/renxuetang/postcss-px-to-viewport#readme",
+  "bundleDependencies": false,
   "dependencies": {
-    "postcss": "^7.0.6"
+    "postcss": "^7.0.6",
+    "object-assign": ">=4.0.1"
+  },
+  "devDependencies": {
+    "jasmine-node": "~1.11.0"
   },
   "engines": {
     "node": ">= 6"

@@ -1,58 +1,117 @@
+'use strict';
 
-const postcss = require('postcss');
+var postcss = require('postcss');
+var objectAssign = require('object-assign');
+var { createPropListMatcher } = require('./src/prop-list-matcher');
+var { getUnitRegexp } = require('./src/pixel-unit-regexp');
 
-const defaults = {
+var defaults = {
   unitToConvert: 'px',
-  viewportWidth: 750,
-  viewportUnit: 'vmin',
+  viewportWidth: 320,
+  viewportHeight: 568, // not now used; TODO: need for different units and math for different properties
   unitPrecision: 5,
-  fontViewportUnit: 'vmin',  // vmin is more suitable.
-  propertyBlacklist: [],
+  viewportUnit: 'vw',
+  fontViewportUnit: 'vw',  // vmin is more suitable.
   selectorBlackList: [],
+  propList: ['*'],
   minPixelValue: 1,
-  enableConvertComment: 'on',
+  mediaQuery: false,
+  replace: true,
+  landscape: false,
+  landscapeUnit: 'vw',
+  landscapeWidth: 568,
+  mediaMinWidth: 767.98,
   disableConvertComment: 'off',
-  mediaQuery: false
 };
 
-module.exports = postcss.plugin('postcss-pixel-to-viewport', function (options) {
-  const opts = Object.assign({}, defaults, options);
-  const pxReplace = createPxReplace(opts.viewportWidth, opts.minPixelValue, opts.unitPrecision, opts.viewportUnit);
+module.exports = postcss.plugin('postcss-px-to-viewport', function (options) {
 
+  var opts = objectAssign({}, defaults, options);
 
-  // excluding regex trick: http://www.rexegg.com/regex-best-trick.html
-  // Not anything inside double quotes
-  // Not anything inside single quotes
-  // Not anything inside url()
-  // Any digit followed by px
-  // !singlequotes|!doublequotes|!url()|pixelunit
-  const pxRegex = new RegExp('"[^"]+"|\'[^\']+\'|url\\([^\\)]+\\)|(\\d*\\.?\\d+)' + opts.unitToConvert, 'ig');
+  var pxRegex = getUnitRegexp(opts.unitToConvert);
+  var satisfyPropList = createPropListMatcher(opts.propList);
+  var landscapeRules = [];
 
   return function (css) {
-    css.walkDecls(function (decl, i) {
-      const next = decl.next();
-      const commentText = next && next.type == 'comment' && next.text;
-      if (decl.value.indexOf(opts.unitToConvert) === -1 || commentText === opts.disableConvertComment) {
-        commentText === opts.disableConvertComment && next.remove();
-        return;
+    css.walkRules(function (rule) {
+      // Add exclude option to ignore some files like 'node_modules'
+      var file = rule.source.input.file;
+
+      if (opts.exclude && file) {
+        if (Object.prototype.toString.call(opts.exclude) === '[object RegExp]') {
+          if (isExclude(opts.exclude, file)) return;
+        } else if (Object.prototype.toString.call(opts.exclude) === '[object Array]') {
+          for (let i = 0; i < opts.exclude.length; i++) {
+            if (isExclude(opts.exclude[i], file)) return;
+          }
+        } else {
+          throw new Error('options.exclude should be RegExp or Array.');
+        }
       }
 
-      if (blacklistedSelector(opts.selectorBlackList, decl.parent.selector)) return;
+      if (blacklistedSelector(opts.selectorBlackList, rule.selector)) return;
 
-      if (commentText === opts.enableConvertComment || !blacklistedProperty(opts.propertyBlacklist, decl.prop)) {
-        commentText === opts.enableConvertComment && next.remove();
-        const unit = getUnit(decl.prop, opts)
-        decl.value = decl.value.replace(pxRegex, createPxReplace(opts.viewportWidth, opts.minPixelValue, opts.unitPrecision, unit));
+      if (opts.landscape && !rule.parent.params) {
+        var landscapeRule = rule.clone().removeAll();
+
+        rule.walkDecls(function(decl) {
+          if (decl.value.indexOf(opts.unitToConvert) === -1) return;
+          if (!satisfyPropList(decl.prop)) return;
+
+          landscapeRule.append(decl.clone({
+            value: decl.value.replace(pxRegex, createPxReplace(opts, opts.landscapeUnit, opts.landscapeWidth, true))
+          }));
+        });
+
+        if (landscapeRule.nodes.length > 0) {
+          landscapeRules.push(landscapeRule);
+        }
       }
+
+      if (!validateParams(rule.parent.params, opts.mediaQuery)) return;
+
+      rule.walkDecls(function(decl, i) {
+        const next = decl.next();
+        const commentText = next && next.type == 'comment' && next.text;
+
+        if (decl.value.indexOf(opts.unitToConvert) === -1 || commentText === opts.disableConvertComment) {
+          commentText === opts.disableConvertComment && next.remove();
+          return;
+        }
+        if (!satisfyPropList(decl.prop)) return;
+
+        var unit;
+        var size;
+        var params = rule.parent.params;
+
+        if (opts.landscape && params && params.indexOf('landscape') !== -1) {
+          unit = opts.landscapeUnit;
+          size = opts.landscapeWidth;
+        } else {
+          unit = getUnit(decl.prop, opts);
+          size = opts.viewportWidth;
+        }
+
+        var value = decl.value.replace(pxRegex, createPxReplace(opts, unit, size));
+
+        if (declarationExists(decl.parent, decl.prop, value)) return;
+
+        if (opts.replace) {
+          decl.value = value;
+        } else {
+          decl.parent.insertAfter(i, decl.clone({ value: value }));
+        }
+      });
     });
 
-    if (opts.mediaQuery) {
-      css.walkAtRules('media', function (rule) {
-        if (rule.params.indexOf(opts.unitToConvert) === -1) return;
-        rule.params = rule.params.replace(pxRegex, pxReplace);
-      });
-    }
+    if (landscapeRules.length > 0) {
+      var landscapeRoot = new postcss.atRule({ params: '(min-width: '+ opts.mediaMinWidth +'px), handheld and (orientation: landscape)', name: 'media' });
 
+      landscapeRules.forEach(function(rule) {
+        landscapeRoot.append(rule);
+      });
+      css.append(landscapeRoot);
+    }
   };
 });
 
@@ -60,12 +119,18 @@ function getUnit(prop, opts) {
   return prop.indexOf('font') === -1 ? opts.viewportUnit : opts.fontViewportUnit;
 }
 
-function createPxReplace(viewportSize, minPixelValue, unitPrecision, viewportUnit) {
+function createPxReplace(opts, viewportUnit, viewportSize, status) {
   return function (m, $1) {
     if (!$1) return m;
-    const pixels = parseFloat($1);
-    if (pixels <= minPixelValue) return m;
-    return toFixed((pixels / viewportSize * 100), unitPrecision) + viewportUnit;
+    var pixels = parseFloat($1);
+    if (pixels <= opts.minPixelValue) return m;
+
+    var parsedVal = toFixed((pixels / viewportSize * 100), opts.unitPrecision);
+
+    if (status) {
+      parsedVal = pixels;
+    }
+    return parsedVal === 0 ? '0' : parsedVal + viewportUnit;
   };
 }
 
@@ -75,14 +140,27 @@ function toFixed(number, precision) {
   return Math.round(wholeNumber / 10) * 10 / multiplier;
 }
 
-function blacklistedProperty(blacklist, property) {
-  if (typeof property !== 'string') return;
+function blacklistedSelector(blacklist, selector) {
+  if (typeof selector !== 'string') return;
   return blacklist.some(function (regex) {
-    if (typeof regex === 'string') return property.indexOf(regex) !== -1;
-    return property.match(regex);
+    if (typeof regex === 'string') return selector.indexOf(regex) !== -1;
+    return selector.match(regex);
   });
 }
 
-function blacklistedSelector(blacklist, selector) {
-  return blacklistedProperty(blacklist, selector);
+function isExclude(reg, file) {
+  if (Object.prototype.toString.call(reg) !== '[object RegExp]') {
+    throw new Error('options.exclude should be RegExp.');
+  }
+  return file.match(reg) !== null;
+}
+
+function declarationExists(decls, prop, value) {
+  return decls.some(function (decl) {
+      return (decl.prop === prop && decl.value === value);
+  });
+}
+
+function validateParams(params, mediaQuery) {
+  return !params || (params && mediaQuery);
 }
