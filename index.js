@@ -127,7 +127,7 @@ function createPxReplace(opts, viewportUnit, viewportSize, status) {
 
     var parsedVal = toFixed((pixels / viewportSize * 100), opts.unitPrecision);
 
-    if (status) {
+    if (status && viewportUnit !== 'rem') {
       parsedVal = pixels;
     }
     return parsedVal === 0 ? '0' : parsedVal + viewportUnit;
